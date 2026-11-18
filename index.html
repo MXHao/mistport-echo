@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="color-scheme" content="dark"><title>雾港回声：黑潮 XI · 定向 / Mistport: Black Tide VIII</title>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="color-scheme" content="dark"><title>雾港回声：黑潮 XI.1 · 鼠标校正 / Mistport XI.1</title>
 <style>
 :root{--ink:#071315;--paper:#f1efe2;--pale:#a9c0bc;--teal:#a8efd6;--orange:#e2a46a;--line:#b0d1c640;--mono:ui-monospace,SFMono-Regular,Consolas,monospace;--serif:"Songti SC","Noto Serif CJK SC",SimSun,serif;--sans:system-ui,-apple-system,"Microsoft YaHei","PingFang SC",sans-serif}
 *,*:before,*:after{box-sizing:border-box}
@@ -212,7 +212,7 @@ body:has(#showroom:not([hidden])) #game:active{cursor:grabbing}
   <div class="modal">
     <div class="slug" id="modeTag"><i aria-hidden="true"></i> 港务救援档案 / 归频 11</div>
     <h1 id="title">雾港回声<span class="chapter">黑潮 XI</span></h1>
-    <div class="subline">MISTPORT: BLACK TIDE　/　RETURN CHANNEL XI</div>
+    <div class="subline">MISTPORT: BLACK TIDE　/　RETURN CHANNEL XI.1 / INPUT</div>
     <p id="intro">风暴撕开了外堤。和两位 AI 队友寻回频片，在黑潮封港前恢复信标。推开障碍、用便携灯辨路，也留意风雨里的立体声线索。</p>
     <p id="summary"></p>
     <button type="button" id="start">开始行动</button>
@@ -3437,31 +3437,71 @@ function makeMistPaceRecorder(){
  return {arm,off,interrupt,record,get mode(){return mode},get stats(){return lastStats}};
 }
 
-/* Original desktop input path. Never reframe touch/keyboard/inspection input.
-   Normal relative packets are applied without filtering latency. Only isolated
-   outliers around acquisition/delivery gaps (or a clear isolated discontinuity)
-   wait briefly for another sample in the same direction. */
+/* Original local pointer-lock/drag input; apart from unusual single-axis packets,
+   ordinary motion is applied immediately. Time and angular thresholds are not tied
+   to render FPS or to raw device counts. No network, pointer history or telemetry. */
 const MistMouse=(()=>{
  const key='mistport.mouse.sensitivity.v1',def=100;
  const norm=v=>Number.isFinite(+v)&&v!==null&&v!==''?Math.max(25,Math.min(250,Math.round(+v/5)*5)):def;
  function preferences(getStore){let value=def,canSave=true;try{value=norm(getStore().getItem(key))}catch(_){canSave=false}return {get:()=>value,canSave:()=>canSave,set(v){value=norm(v);try{getStore().setItem(key,String(value));canSave=true}catch(_){canSave=false}return value;}}}
- function create(emit){let mode='',fresh=true,prior=null,pending=null,history=6,started=0;
-  function begin(source,t){mode=source;fresh=true;prior=null;pending=null;history=6;started=t;}
+ function create(emit){
+  let mode='',epoch=0,stamp=-Infinity,axes;const rad=Math.PI/180;
+  const empty=()=>({p:null,last:null,chain:0,recent:[]});
+  function begin(source,t){mode=source||'';epoch=t;stamp=-Infinity;axes=[empty(),empty()]}
   function clear(){begin('',0)}
-  function tick(t){if(pending&&t-pending.t>40)pending=null}
-  function accept(a){emit(a.dx,a.dy,a.gain);history=history*.65+a.length*.35;prior=a;fresh=false;}
-  function sample(source,dx,dy,t,gain){if(!mode||source!==mode||![dx,dy,t,gain].every(Number.isFinite))return;
-   let length=Math.hypot(dx,dy);if(!length)return;
-   // Malformed/out-of-order records cannot span a valid input epoch.
-   if(length>32768||t+1<started||(prior&&t+1<prior.t)||(pending&&t+1<pending.t))return;
-   tick(t);let a={dx,dy,t,gain,length};const gap=prior?t-prior.t:Infinity;
-   if(pending){const p=pending;pending=null;const cosine=(p.dx*dx+p.dy*dy)/(p.length*length);
-    // A sustained fast hand movement must keep ALL counts; do not cap a valid flick at 170.
-    if(t-p.t<=40&&((cosine>.65&&length>=Math.max(12,p.length*.19)&&length<=p.length*5.3)||(cosine<-.86&&length>=p.length*.65&&length<=p.length*1.55))){accept(p);accept(a);return;}
+  clear();
+  function tick(t){if(!Number.isFinite(t))return;for(const h of axes)if(h.p&&t-h.p.t>29)h.p=null}
+  function vote(old,n,t,agreement){
+   const dt=t-old.t;if(dt<.45||dt>29)return false;
+   const nmag=Math.abs(n),omag=Math.abs(old.n);const r=nmag/omag;
+   // A small same-direction neighbour or an unrelated fast other axis is not a vote.
+   if(r<(agreement?.42:.68)||r>(agreement?3.1:1.48))return false;
+   if(old.span>=.45&&old.span<31){
+    const vr=r*Math.max(1,old.span)/Math.max(1,dt);
+    if(vr<(agreement?.26:.38)||vr>(agreement?3.8:2.8))return false;
    }
-   const boundary=fresh||gap>125;
-   const unusual=boundary?length>=(fresh?72:112):(length>=150&&length>Math.max(22,history)*6.2&&length>Math.max(18,prior.length)*3.9);
-   if(unusual){pending=a;return;}accept(a)
+   return true;
+  }
+  function mark(h,a,chain){h.prev=h.last;h.last=a;h.chain=chain;h.recent.push(Math.abs(a.theta));if(h.recent.length>4)h.recent.shift()}
+  function axis(h,n,t,g,vertical,received){
+   if(!n)return 0;
+   const mult=vertical?.78:1,angle=n*g*mult,mag=Math.abs(angle),span=h.last?t-h.last.t:Infinity;
+   const a={n,t,theta:angle,span};let failed=null;
+   // Small motion can legitimately queue during a busy frame. Large stale bursts
+   // must not validate each other solely because their capture times look coherent.
+   const delayed=received-t>52;
+   if(delayed){h.p=null;h.chain=0;if(mag>=(h.last?4.75:3.7)*rad)return 0;}
+   if(h.p){const p=h.p;h.p=null;
+    if(vote(p,n,t,p.n*n>0)){
+      // Apply the pair as ONE signed angular motion, so an immediate real reversal
+      // does not first saturate pitch and then create a spurious residual on the way back.
+      mark(h,p,1);mark(h,a,2);return p.theta+angle;
+    }
+    failed=p;
+   }
+   const fresh=!h.last||span>=86;
+   if(!fresh&&h.chain>0&&vote(h.last,n,t,h.last.n*n>0)){mark(h,a,Math.min(5,h.chain+1));return angle}
+   const sorted=fresh?[]:h.recent.slice().sort((a,b)=>a-b),typ=sorted.length?sorted[(sorted.length-1)>>1]:0;
+   // A plausible single normal movement following a rejected warp is still honored.
+   // Bound this recovery in counts AND output angle, including at 250% sensitivity.
+   const recovered=failed&&Math.abs(n)<=40&&Math.abs(n)<Math.abs(failed.n)*.38&&mag<12.5*rad;
+   const threshold=fresh?3.7*rad:Math.max(4.75*rad,Math.min(10*rad,typ*2.7));
+   // A previously *accepted* consistent directional ramp can authorize its
+   // moderate final report; a single large perpendicular or constant-small jump cannot.
+   const prev=h.prev,last=h.last;let ramp=false;
+   if(!fresh&&!failed&&!delayed&&prev&&last&&n*last.n>0&&last.n*prev.n>0&&mag<=12*rad){
+    const pr=Math.abs(last.n/prev.n),nr=Math.abs(n/last.n),pd=last.t-prev.t,nd=t-last.t;
+    ramp=pd>=.6&&pd<=23&&nd>=.6&&nd<=23&&nd/pd>=.50&&nd/pd<=1.9&&pr>=1.06&&pr<=5.2&&nr>=.58&&nr<=2.7;
+   }
+   if(!recovered&&!ramp&&mag>=threshold){h.p=a;h.chain=0;return 0}
+   mark(h,a,0);return angle;
+  }
+  function sample(source,dx,dy,t,gain,received=t){
+   if(!mode||source!==mode||![dx,dy,t,gain,received].every(Number.isFinite)||gain<=0||Math.max(Math.abs(dx),Math.abs(dy))>32768||t<epoch-.05||t<stamp-.025)return false;
+   if(!dx&&!dy)return true;
+   // Any nonzero packet advances the timestamp even if its angles are quarantined.
+   stamp=Math.max(t,stamp);tick(t);const x=axis(axes[0],dx,t,gain,false,received),y=axis(axes[1],dy,t,gain,true,received);
+   if(x||y)emit(x,y/.78,1);return true
   }
   return {begin,clear,sample,tick,source:()=>mode};
  }
@@ -3490,7 +3530,13 @@ const MistMouse=(()=>{
  function sensitivity(v){let n=v===undefined?mousePrefs.get():mousePrefs.set(v);$('mouseSens').value=String(n);$('mouseSens').setAttribute('aria-valuetext',n+'%');$('mousePercent').textContent=n+'%';$('mouseSave').hidden=mousePrefs.canSave();}
  $('mouseSens').addEventListener('input',e=>sensitivity(e.target.value));$('mouseDefault').addEventListener('click',()=>sensitivity(MistMouse.defaultValue));sensitivity();
  function rearmMouse(){mouseEpoch=msNow();mouse.begin('lock',mouseEpoch);}
- function eventMS(e){const t=+e.timeStamp,now=msNow();return Number.isFinite(t)&&t>0&&Math.abs(t-now)<86400000?t:now;}
+ function eventMS(e,small=false){
+  const raw=Number(e.timeStamp),now=msNow();if(!Number.isFinite(raw)||raw<=0)return small?now:NaN;
+  let t=raw;if(t>1e11){const origin=Number.isFinite(performance.timeOrigin)?performance.timeOrigin:Date.now()-now;t-=origin;}
+  // Old epochs, queued background movement and future-dated packets are not current input.
+  return t>=now-145&&t<=now+5?t:NaN;
+ }
+ function mouseLike(e){return !(e.sourceCapabilities?.firesTouchEvents||e.pointerType&&e.pointerType!=='mouse');}
  function discardMouseDrag(){if(dragId!==null){try{if(canvas.hasPointerCapture?.(dragId))canvas.releasePointerCapture(dragId)}catch(_){}drags.delete(dragId);dragId=null;}}
  function short(m){return Math.floor(m/60)+':'+String(Math.floor(m)%60).padStart(2,'0')}
  function resize(){let w=canvas.clientWidth||innerWidth||900,h=canvas.clientHeight||innerHeight||520,dpr=window.devicePixelRatio||1;let x,y;
@@ -3613,8 +3659,9 @@ const MistMouse=(()=>{
   }
  });
  window.addEventListener('keyup',e=>{keys.delete(e.code)});
- window.addEventListener('blur',()=>{if(state==='play')pause();clearInput()});
- document.addEventListener('visibilitychange',()=>{if(document.hidden&&state==='play')pause();if(touchGpu)mobileBudget.resetClock();last=0});
+ function backgroundPause(){if(state==='play')pause();else clearInput();if(document.pointerLockElement===canvas)unlock();}
+ window.addEventListener('blur',backgroundPause);window.addEventListener('pagehide',backgroundPause);
+ document.addEventListener('visibilitychange',()=>{if(document.hidden)backgroundPause();if(touchGpu)mobileBudget.resetClock();last=0});
  document.addEventListener('pointerlockchange',()=>{
   let now=document.pointerLockElement===canvas;if(now){wantLock=false;ignoreUnlock=false;lockWas=true;discardMouseDrag();if(state==='play'&&!document.hidden&&!G.mapOpen)rearmMouse();else if(state!=='play')unlock();return}
   mouse.clear();discardMouseDrag();
@@ -3623,7 +3670,8 @@ const MistMouse=(()=>{
  document.addEventListener('pointerlockerror',()=>{wantLock=false;if(document.pointerLockElement!==canvas&&mouse.source()==='lock')mouse.clear()});
  function touchRotate(dx,dy){if(state!=='play'||G.mapOpen)return;G.p.a+=clamp(dx,-170,170)*.0047;G.p.pitch=clamp(G.p.pitch-clamp(dy,-170,170)*.0047*.78,-.52,.53);}
  document.addEventListener('mousemove',e=>{if(state!=='play'||document.hidden||G.mapOpen||document.pointerLockElement!==canvas||mouse.source()!=='lock')return;
-  mouse.sample('lock',e.movementX,e.movementY,eventMS(e),mouseGain());});
+  if(!mouseLike(e)||e.target&&e.target!==canvas&&e.target!==document&&!e.composedPath?.().includes(canvas))return;
+  mouse.sample('lock',e.movementX,e.movementY,eventMS(e,Math.max(Math.abs(e.movementX),Math.abs(e.movementY))<=5),mouseGain(),msNow());});
  canvas.addEventListener('contextmenu',e=>e.preventDefault());
  canvas.addEventListener('pointerdown',e=>{if(state==='survey'){surveyDrag={id:e.pointerId,x:e.clientX,y:e.clientY};try{canvas.setPointerCapture(e.pointerId)}catch(_){}return}if(state==='gallery'){galleryDrag={id:e.pointerId,x:e.clientX,y:e.clientY};try{canvas.setPointerCapture(e.pointerId)}catch(_){}return}
   if(state!=='play')return;
@@ -3631,10 +3679,14 @@ const MistMouse=(()=>{
   if(e.pointerType==='mouse'&&e.button!==0&&e.button!==2)return;
   if(e.pointerType==='mouse'&&e.button===2&&document.pointerLockElement===canvas)focusHold=true;
   if(e.pointerType==='mouse'&&e.button===0){pressed=true;G.inspectAt=-99;M.fire(G)}
-  if(document.pointerLockElement!==canvas){if(e.pointerType==='mouse')mouse.begin('drag',eventMS(e));dragId=e.pointerId;drags.set(e.pointerId,[e.clientX,e.clientY]);try{canvas.setPointerCapture(e.pointerId)}catch(_){}}
+  if(document.pointerLockElement!==canvas){if(e.pointerType==='mouse'){if(!mouseLike(e))return;mouse.begin('drag',msNow());}dragId=e.pointerId;drags.set(e.pointerId,[e.clientX,e.clientY,e.pointerType,msNow()]);try{canvas.setPointerCapture(e.pointerId)}catch(_){}}
  });
  canvas.addEventListener('pointermove',e=>{if(state==='survey'&&surveyDrag&&surveyDrag.id===e.pointerId){const dx=e.clientX-surveyDrag.x,dy=e.clientY-surveyDrag.y,nx=clamp(surveyPan[0]+dx*.003,-.46,.46),ny=clamp(surveyPan[1]-dy*.002,-.26,.26);surveyG.p.a+=nx-surveyPan[0];surveyG.p.pitch+=ny-surveyPan[1];surveyPan=[nx,ny];surveyDrag.x=e.clientX;surveyDrag.y=e.clientY;dirty=true;return}if(state==='gallery'&&galleryDrag&&galleryDrag.id===e.pointerId){orbit-=(e.clientX-galleryDrag.x)*.008;elevation=clamp(elevation+(e.clientY-galleryDrag.y)*.006,-.06,.68);galleryDrag.x=e.clientX;galleryDrag.y=e.clientY;dirty=true;return}
- if(document.pointerLockElement===canvas||e.pointerId!==dragId)return;let q=drags.get(e.pointerId);if(q){if(e.pointerType==='mouse')mouse.sample('drag',e.clientX-q[0],e.clientY-q[1],eventMS(e),mouseGain());else touchRotate(e.clientX-q[0],e.clientY-q[1]);drags.set(e.pointerId,[e.clientX,e.clientY])}});
+ if(document.pointerLockElement===canvas||e.pointerId!==dragId)return;let q=drags.get(e.pointerId);if(q&&e.pointerType===q[2]){if(e.pointerType==='mouse'){
+  const t=eventMS(e,Math.max(Math.abs(e.clientX-q[0]),Math.abs(e.clientY-q[1]))<=5);if(!mouseLike(e)||!Number.isFinite(t)||t<q[3]-.05)return;
+  if(!mouse.sample('drag',e.clientX-q[0],e.clientY-q[1],t,mouseGain(),msNow()))return;
+  drags.set(e.pointerId,[e.clientX,e.clientY,e.pointerType,t])
+ }else{touchRotate(e.clientX-q[0],e.clientY-q[1]);drags.set(e.pointerId,[e.clientX,e.clientY,e.pointerType,0])}}});
  function release(e){if(surveyDrag&&surveyDrag.id===e.pointerId)surveyDrag=null;if(galleryDrag&&galleryDrag.id===e.pointerId)galleryDrag=null;if(e.pointerType==='mouse'){if(e.button===2)focusHold=false;else pressed=false}drags.delete(e.pointerId);if(dragId===e.pointerId){dragId=null;if(e.pointerType==='mouse'&&mouse.source()==='drag')mouse.clear()}}
  window.addEventListener('pointerup',release);window.addEventListener('pointercancel',release);
  const stick=$('stick'),nub=$('nub');function stickAt(e){let b=stick.getBoundingClientRect(),x=(e.clientX-b.left-b.width*.5)/(b.width*.38),y=(e.clientY-b.top-b.height*.5)/(b.height*.38),n=Math.max(1,Math.hypot(x,y));touch.s=x/n;touch.f=-y/n;nub.style.transform='translate('+Math.round(touch.s*b.width*.25)+'px,'+Math.round(-touch.f*b.height*.25)+'px)'}
