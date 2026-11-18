@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="color-scheme" content="dark"><title>雾港回声：黑潮 XI.1 · 鼠标校正 / Mistport XI.1</title>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="color-scheme" content="dark"><title>雾港回声 XI.3 · 鼠标错包修正</title>
 <style>
 :root{--ink:#071315;--paper:#f1efe2;--pale:#a9c0bc;--teal:#a8efd6;--orange:#e2a46a;--line:#b0d1c640;--mono:ui-monospace,SFMono-Regular,Consolas,monospace;--serif:"Songti SC","Noto Serif CJK SC",SimSun,serif;--sans:system-ui,-apple-system,"Microsoft YaHei","PingFang SC",sans-serif}
 *,*:before,*:after{box-sizing:border-box}
@@ -189,6 +189,7 @@ body:has(#showroom:not([hidden])) #game:active{cursor:grabbing}
 #paceChip{position:absolute;bottom:max(14px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);max-width:56%;pointer-events:none;background:#071820dc;color:#c9e5d6;border:1px solid #acddc54c;border-radius:3px;padding:4px 7px;text-align:center;font:10px/1.35 var(--mono);letter-spacing:.02em;z-index:4}
 #paceResult{max-width:48ch;color:#b8d6ca;margin:8px 0 2px;font:11px/1.55 var(--sans,sans-serif)}@media(max-width:660px){#paceChip{font-size:9px;bottom:max(10px,env(safe-area-inset-bottom));padding:4px}#paceResult{font-size:10px}}
 .mouse-settings{margin:9px 0 6px;padding:6px 9px;border-left:2px solid #6d9a92;background:#102327b5;display:flex;align-items:center;gap:10px;max-width:410px;color:#d5e3dc;font:650 12px/1.2 var(--sans)}.mouse-settings label{white-space:nowrap}.mouse-settings input{flex:1;min-width:72px;max-width:170px;height:23px;accent-color:#9ec9b7;cursor:pointer}.mouse-settings output{font:600 12px/1 var(--mono);min-width:36px;color:#e3d3ae}.mouse-settings button{min-height:25px;padding:2px 8px;font-size:11px;border-color:#6d8e86}.mouse-settings :focus-visible{outline:2px solid #ffd095;outline-offset:2px}@media(max-height:550px){.mouse-settings{margin:3px 0;padding:2px 7px}.mouse-settings input{height:21px}}@media(pointer:coarse){.mouse-settings{display:none}}@media(any-pointer:fine){.mouse-settings{display:flex}}
+.pointer-lab{margin:9px 0;color:var(--pale);font:12px/1.52 system-ui;text-align:left}.pointer-lab>button{font-weight:650;letter-spacing:.03em;color:var(--teal)}.pointer-lab button{border:1px solid #75bbae67;background:#112c2e;color:var(--paper);padding:6px 10px;border-radius:4px;cursor:pointer}.pointer-lab button:disabled{opacity:.45;cursor:default}.pointer-lab summary{cursor:pointer;padding:6px 0;color:var(--pale)}.pointer-lab details[open]{padding:0 9px 6px;background:#0c191ce6;border:1px solid var(--line)}.pointer-lab p{margin:4px 0}.pointer-choice{display:flex;gap:5px;flex-wrap:wrap}.pointer-choice button[aria-pressed=true]{color:#122e2a;background:#a8efd6}.pointer-lab+#summary{margin-top:4px}#viewInputNote,#pointerMark{position:absolute;right:15px;bottom:65px;color:var(--pale);font:10px/1.4 var(--mono);pointer-events:none;background:#0c1b1c99;padding:2px 5px}#pointerMark{bottom:84px;color:#ffd296}.pointer-lab:has(details[open]){max-height:35vh;overflow-y:auto}@media(pointer:coarse){#pointerLab,#viewInputNote,#pointerMark{display:none}}
 </style></head>
 <body>
 <canvas id="game" tabindex="-1" aria-label="雾港回声：黑潮 3D 游戏画面"></canvas>
@@ -199,7 +200,7 @@ body:has(#showroom:not([hidden])) #game:active{cursor:grabbing}
   <div id="compass" aria-label="航向">W　·　N　·　E</div>
   <div id="progress" aria-hidden="true"><div id="progressFill"></div></div>
   <button type="button" id="torchBtn" title="切换照明（F）" aria-label="切换照明" aria-pressed="false">照明</button><button type="button" id="mapBtn" title="区域图（M）" aria-label="区域图" aria-pressed="false">区域图</button><button type="button" id="soundPlay" title="声音（V）" aria-label="切换声音">♪</button><button type="button" id="pause" aria-label="暂停" title="暂停"><svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M5 3h3v14H5zm7 0h3v14h-3z"/></svg></button>
-  <div id="crosshair" aria-hidden="true"></div><div id="scanTag" aria-hidden="true" hidden><span id="scanText"></span><i></i></div><output id="status"></output><div id="hint"></div>
+  <span id="viewInputNote"></span><span id="pointerMark" hidden></span><div id="crosshair" aria-hidden="true"></div><div id="scanTag" aria-hidden="true" hidden><span id="scanText"></span><i></i></div><output id="status"></output><div id="hint"></div>
   <div id="squad" aria-label="队友"><span id="ally1">雁 · 就位</span><span id="ally2">芦 · 就位</span></div>
   <div class="readout shield"><div class="hud-label">护盾 / SHIELD</div><b id="hp">100</b><div id="shield-meter"><div id="hpbar"></div></div></div>
   <div class="readout ammunition"><div class="hud-label">谐振电量 / CHARGE</div><div><b id="ammo">12</b> <span id="reserve">24</span></div></div>
@@ -212,12 +213,18 @@ body:has(#showroom:not([hidden])) #game:active{cursor:grabbing}
   <div class="modal">
     <div class="slug" id="modeTag"><i aria-hidden="true"></i> 港务救援档案 / 归频 11</div>
     <h1 id="title">雾港回声<span class="chapter">黑潮 XI</span></h1>
-    <div class="subline">MISTPORT: BLACK TIDE　/　RETURN CHANNEL XI.1 / INPUT</div>
+    <div class="subline">MISTPORT: BLACK TIDE　/　RETURN CHANNEL XI.3 / INPUT</div>
     <p id="intro">风暴撕开了外堤。和两位 AI 队友寻回频片，在黑潮封港前恢复信标。推开障碍、用便携灯辨路，也留意风雨里的立体声线索。</p>
     <p id="summary"></p>
     <button type="button" id="start">开始行动</button>
     <div class="mouse-settings"><label for="mouseSens">鼠标灵敏度</label><input id="mouseSens" type="range" min="25" max="250" step="5" value="100" title="25% 至 250%，只影响鼠标视角；可用方向键微调"><output id="mousePercent" for="mouseSens">100%</output><small id="mouseSave" hidden title="此浏览器不允许保存本地文件的偏好，本次行动仍采用所选值">仅本次</small><button type="button" id="mouseDefault" title="恢复鼠标默认灵敏度 100%">恢复默认</button></div>
-    <div class="opts"><button id="gallery" type="button"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true"><path d="m10 2 7 4v8l-7 4-7-4V6l7-4Zm0 8 7-4m-7 4L3 6m7 4v8"/></svg>三维模型陈列</button><button id="portraitOpen" type="button" title="直接查看医护员的注视、眼睑与神态">芦 · 目光特写</button><button id="surveyOpen" type="button" title="实景检查西库的雨棚和排水设施">西库现场勘察</button><button id="soundBtn" type="button" aria-pressed="true">声音：开</button><button id="graphics" type="button" title="切换自动、精细或流畅画质">画质：自动</button><button type="button" id="paceToggle" aria-pressed="false" title="只在本机记录20秒实际游玩绘制间隔">本机性能记录</button><button id="softFlash" type="button" aria-pressed="false">柔和雷闪：关</button><button type="button" id="restartRun" hidden>重新开始</button></div><p id="paceResult" role="status" hidden></p><div class="weather-deck" aria-label="起始天气预览">
+    <div class="pointer-lab" id="pointerLab"><button type="button" id="dragPlay">备用入口：右键拖看并进入</button>
+<details id="pointerDetails"><summary>鼠标方式与本地诊断</summary>
+<div class="pointer-choice"><button type="button" id="mouseModeStd">标准锁定</button><button type="button" id="mouseModeRaw">原始输入</button><button type="button" id="mouseModeDrag">右键拖看</button></div>
+<p id="mouseRouteHelp"></p><p id="mouseModeNotice" aria-live="polite"></p>
+<p>本地记录默认关闭。开启后只在内存里留最近最多 12 秒的相对移动、事件/画帧间隔、镜头转角和视野角。可按 T 标记。不录屏、不收集系统指针位置或按键，不联网；关页即清。</p>
+<div class="pointer-choice"><button id="mouseJournalToggle" type="button">开启本地记录</button><button id="mouseJournalMark" type="button" disabled>标记</button><button id="mouseJournalExport" type="button" disabled>导出本地 JSON</button></div><p id="mouseJournalStatus" aria-live="polite"></p></details></div>
+<div class="opts"><button id="gallery" type="button"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true"><path d="m10 2 7 4v8l-7 4-7-4V6l7-4Zm0 8 7-4m-7 4L3 6m7 4v8"/></svg>三维模型陈列</button><button id="portraitOpen" type="button" title="直接查看医护员的注视、眼睑与神态">芦 · 目光特写</button><button id="surveyOpen" type="button" title="实景检查西库的雨棚和排水设施">西库现场勘察</button><button id="soundBtn" type="button" aria-pressed="true">声音：开</button><button id="graphics" type="button" title="切换自动、精细或流畅画质">画质：自动</button><button type="button" id="paceToggle" aria-pressed="false" title="只在本机记录20秒实际游玩绘制间隔">本机性能记录</button><button id="softFlash" type="button" aria-pressed="false">柔和雷闪：关</button><button type="button" id="restartRun" hidden>重新开始</button></div><p id="paceResult" role="status" hidden></p><div class="weather-deck" aria-label="起始天气预览">
       <div class="wx-head"><span class="wx-label"><i aria-hidden="true"></i>港区气象</span><span id="wxDescribe" aria-live="polite">自然循环</span></div>
       <div class="wx-modes" role="group" aria-label="选择行动起始天气">
         <button type="button" id="weatherAuto" aria-pressed="true">自然循环</button><button type="button" id="weatherDry" aria-pressed="false">风暴前</button><button type="button" id="weatherStorm" aria-pressed="false">雷暴</button><button type="button" id="weatherAfter" aria-pressed="false">雨歇</button>
@@ -3440,17 +3447,48 @@ function makeMistPaceRecorder(){
 /* Original local pointer-lock/drag input; apart from unusual single-axis packets,
    ordinary motion is applied immediately. Time and angular thresholds are not tied
    to render FPS or to raw device counts. No network, pointer history or telemetry. */
+/* Volatile opt-in game diagnostics, no connector, network, browser storage or system API. */
+const MistPointerJournal=(()=>{
+ const MAX=8192, WINDOW=12000,round=x=>Math.round(x*1000)/1000,angle=a=>Math.atan2(Math.sin(a),Math.cos(a))*180/Math.PI;
+ function create(){
+ let buf=null,head=0,n=0,begin=0,endAt=Infinity,frozen=false,lastE=NaN,lastF=NaN,lastA=null,lastP=null;
+ function clear(){buf=null;head=0;n=0;frozen=false;endAt=Infinity;lastE=lastF=NaN;lastA=lastP=null}
+ function start(t){clear();buf=new Array(MAX);begin=t}
+ function expiry(t){if(buf&&!frozen&&t>endAt)frozen=true}
+ function put(t,row){if(!buf)return;expiry(t);if(frozen)return;while(n&&(t-begin)-buf[head][1]>WINDOW){buf[head]=undefined;head=(head+1)%MAX;n--;}
+  const v=[row[0],round(t-begin),...row.slice(1)];if(n===MAX){buf[head]=v;head=(head+1)%MAX}else buf[(head+n++)%MAX]=v}
+ function mode(t,s){if(buf&&!frozen)put(t,['m',s])}
+ function applied(t,source,ya,pi){if(buf&&!frozen&&(ya||pi))put(t,['a',source,round(ya*180/Math.PI),round(pi*180/Math.PI)])}
+ function packet(now,stamp,source,dx,dy,oldYaw,oldPitch,newYaw,newPitch){
+  if(!buf||frozen)return;put(now,['e',source,Number.isFinite(lastE)?round(now-lastE):null,Number.isFinite(stamp)?round(now-stamp):null,round(dx),round(dy),round(angle(newYaw-oldYaw)),round((newPitch-oldPitch)*180/Math.PI)]);lastE=now
+ }
+ function frame(now,dir,fov,raf=now){
+  if(!buf||frozen)return;const a=Math.atan2(dir[2],dir[0]),p=Math.atan2(dir[1],Math.hypot(dir[0],dir[2]));
+  put(now,['f',Number.isFinite(lastF)?round(raf-lastF):null,lastA===null?null:round(angle(a-lastA)),lastP===null?null:round((p-lastP)*180/Math.PI),round(fov*180/Math.PI)]);
+  lastF=raf;lastA=a;lastP=p
+ }
+ function mark(t){if(!buf||frozen||endAt!==Infinity)return;put(t,['mark']);endAt=t+460}
+ function pause(t){if(!buf||frozen)return;put(t,['m','paused']);lastE=lastF=NaN;lastA=lastP=null;if(endAt!==Infinity)frozen=true}
+ function state(){return !buf?'off':frozen?'frozen':endAt!==Infinity?'marked':'recording'}
+ function exportJSON(t){if(!buf||!n)return '';expiry(t);const rows=[];for(let i=0;i<n;i++)rows.push(buf[(head+i)%MAX].slice());
+ return JSON.stringify({format:'mistport.local.pointer/3',windowMs:WINDOW,entryLimit:MAX,units:'ms; relative mouse/drag counts; angles in degrees; frame intervals include scheduling, not GPU time',
+ columns:{a:['kind','msSinceEnable','source','actualUnwrappedYawAppliedDeg','actualPitchAppliedDeg'],e:['kind','msSinceEnable','source','interarrivalMs','ageAtDeliveryMs','relativeDX','relativeDY','netWrappedYawDuringHandlerDeg','netPitchDuringHandlerDeg'],f:['kind','msSinceEnable','drawIntervalMs','cameraYawDeltaDeg','cameraPitchDeltaDeg','horizontalFovDeg'],m:['kind','msSinceEnable','gameInputMode'],mark:['kind','msSinceEnable']},rows});
+ }
+ return {start,clear,packet,applied,frame,mode,mark,pause,tick:expiry,state,exportJSON,hasData:()=>!!n,live:()=>!!buf&&!frozen};
+ }return {create};
+})();
+
 const MistMouse=(()=>{
  const key='mistport.mouse.sensitivity.v1',def=100;
  const norm=v=>Number.isFinite(+v)&&v!==null&&v!==''?Math.max(25,Math.min(250,Math.round(+v/5)*5)):def;
  function preferences(getStore){let value=def,canSave=true;try{value=norm(getStore().getItem(key))}catch(_){canSave=false}return {get:()=>value,canSave:()=>canSave,set(v){value=norm(v);try{getStore().setItem(key,String(value));canSave=true}catch(_){canSave=false}return value;}}}
  function create(emit){
-  let mode='',epoch=0,stamp=-Infinity,axes;const rad=Math.PI/180;
+  let mode='',epoch=0,stamp=-Infinity,axes,heldExtreme=null,dropped=null,status='normal';const rad=Math.PI/180;
   const empty=()=>({p:null,last:null,chain:0,recent:[]});
-  function begin(source,t){mode=source||'';epoch=t;stamp=-Infinity;axes=[empty(),empty()]}
+  function begin(source,t){mode=source||'';epoch=t;stamp=-Infinity;axes=[empty(),empty()];heldExtreme=dropped=null;status='normal'}
   function clear(){begin('',0)}
   clear();
-  function tick(t){if(!Number.isFinite(t))return;for(const h of axes)if(h.p&&t-h.p.t>29)h.p=null}
+  function expire(t){if(!Number.isFinite(t))return;for(const h of axes)if(h.p&&t-h.p.t>29)h.p=null}
   function vote(old,n,t,agreement){
    const dt=t-old.t;if(dt<.45||dt>29)return false;
    const nmag=Math.abs(n),omag=Math.abs(old.n);const r=nmag/omag;
@@ -3463,10 +3501,10 @@ const MistMouse=(()=>{
    return true;
   }
   function mark(h,a,chain){h.prev=h.last;h.last=a;h.chain=chain;h.recent.push(Math.abs(a.theta));if(h.recent.length>4)h.recent.shift()}
-  function axis(h,n,t,g,vertical,received){
+  function axis(h,n,t,g,vertical,received,after=0){
    if(!n)return 0;
    const mult=vertical?.78:1,angle=n*g*mult,mag=Math.abs(angle),span=h.last?t-h.last.t:Infinity;
-   const a={n,t,theta:angle,span};let failed=null;
+   const a={n,t,theta:angle,span};let failed=after?{n:after}:null;
    // Small motion can legitimately queue during a busy frame. Large stale bursts
    // must not validate each other solely because their capture times look coherent.
    const delayed=received-t>52;
@@ -3496,14 +3534,33 @@ const MistMouse=(()=>{
    if(!recovered&&!ramp&&mag>=threshold){h.p=a;h.chain=0;return 0}
    mark(h,a,0);return angle;
   }
-  function sample(source,dx,dy,t,gain,received=t){
-   if(!mode||source!==mode||![dx,dy,t,gain,received].every(Number.isFinite)||gain<=0||Math.max(Math.abs(dx),Math.abs(dy))>32768||t<epoch-.05||t<stamp-.025)return false;
-   if(!dx&&!dy)return true;
-   // Any nonzero packet advances the timestamp even if its angles are quarantined.
-   stamp=Math.max(t,stamp);tick(t);const x=axis(axes[0],dx,t,gain,false,received),y=axis(axes[1],dy,t,gain,true,received);
-   if(x||y)emit(x,y/.78,1);return true
-  }
-  return {begin,clear,sample,tick,source:()=>mode};
+// A single extraordinary relative report is held for a service turn, never an ordinary report.
+// Retain both clocks: input's capture timestamp may advance while the browser drains a backlog
+// at one instant. Two near-identical *extreme* vectors in the same service burst are one
+// ambiguous observation, not mutually independent proof. There is no general rate/turn cap.
+const cohortWindow=.62, sourceWindow=3.58, normv=(x,y)=>Math.hypot(x,y);
+function isExtra(v){const m=Math.max(Math.abs(v.x),Math.abs(v.y));return m>=520||m>=420&&Math.max(Math.abs(v.x*v.g),Math.abs(v.y*v.g*.78))>=14*rad}
+function coupled(a,b){const dr=b.r-a.r,dt=b.t-a.t,mag=normv(a.x,a.y);return dr>=-.02&&dr<=cohortWindow&&dt>=-.03&&dt<=sourceWindow&&normv(a.x-b.x,a.y-b.y)<=Math.max(4,.024*mag)}
+function consume(q,after){const x=axis(axes[0],q.x,q.t,q.g,false,q.r,after?.x),y=axis(axes[1],q.y,q.t,q.g,true,q.r,after?.y);if(x||y)emit(x,y/.78,1)}
+function flush(){if(heldExtreme){const q=heldExtreme;heldExtreme=null;consume(q)}}
+function tick(now){if(!Number.isFinite(now))return;if(heldExtreme&&now-heldExtreme.r>cohortWindow)flush();expire(now)}
+function sample(source,dx,dy,t,gain,received=t){
+ if(!mode||source!==mode||![dx,dy,t,gain,received].every(Number.isFinite)||gain<=0||Math.max(Math.abs(dx),Math.abs(dy))>32768||t<epoch-.05||t<stamp-.025)return false;
+ if(!dx&&!dy)return true;stamp=Math.max(t,stamp);expire(t);
+ const q={x:dx,y:dy,t,g:gain,r:received};
+ if(mode!=='lock'){consume(q);return true}
+ const huge=isExtra(q);
+ if(dropped&&huge&&coupled(dropped,q)){dropped=q;status='duplicate-burst';return true}
+ if(heldExtreme){
+  if(huge&&coupled(heldExtreme,q)){heldExtreme=null;dropped=q;for(const h of axes){h.p=null;h.chain=0}status='duplicate-burst';return true}
+  flush();
+ }
+ let after=dropped&&q.r-dropped.r<=30?dropped:null;
+ dropped=null;status=huge?'pending-service':'normal';
+ if(huge){heldExtreme=q;return true}
+ consume(q,after);return true;
+}
+  return {begin,clear,sample,tick,source:()=>mode,verdict:()=>status};
  }
  return {preferences,create,defaultValue:def,normalize:norm};
 })();
@@ -3524,7 +3581,7 @@ const MistMouse=(()=>{
  let pressed=false,dragId=null,stickId=null,audioState='开';
  const coarse=!!(window.matchMedia&&matchMedia('(pointer:coarse)').matches),touchGpu=coarse||(typeof navigator!=='undefined'&&(navigator.userAgentData?.mobile||/Android|iPhone|iPad/i.test(navigator.userAgent||''))),mobileBudget=MistMobileBudget.create();
  const mousePrefs=MistMouse.preferences(()=>window.localStorage);
- const mouse=MistMouse.create((dx,dy,gain)=>{if(state!=='play'||G.mapOpen||document.hidden)return;G.p.a+=dx*gain;G.p.pitch=clamp(G.p.pitch-dy*gain*.78,-.52,.53)});
+ const mouse=MistMouse.create((dx,dy,gain)=>{if(state!=='play'||G.mapOpen||document.hidden)return;const oy=G.p.a,op=G.p.pitch;G.p.a+=dx*gain;G.p.pitch=clamp(G.p.pitch-dy*gain*.78,-.52,.53);if(journal.live())journal.applied(inputClock(),mouse.source()==='lock'?(actual==='raw'?'raw-lock':'lock'):'unlocked-fallback',G.p.a-oy,G.p.pitch-op)});
  const msNow=()=>performance.now();let mouseEpoch=0;
  function mouseGain(){const f=G.fov||1.32,v=Number.isFinite(G._viewFov)?G._viewFov:f;return .00255*mousePrefs.get()*.01*clamp(Math.tan(v*.5)/Math.tan(f*.5),.64,1.04);}
  function sensitivity(v){let n=v===undefined?mousePrefs.get():mousePrefs.set(v);$('mouseSens').value=String(n);$('mouseSens').setAttribute('aria-valuetext',n+'%');$('mousePercent').textContent=n+'%';$('mouseSave').hidden=mousePrefs.canSave();}
@@ -3545,11 +3602,75 @@ const MistMouse=(()=>{
  // Text and map remain at CSS resolution even when the 3D budget contracts.
  const hudScale=touchGpu?Math.min(dpr,1.07,960/Math.max(w,h)):x/w;
  if(x!==vw||y!==vh||ink.width!==Math.round(w*hudScale)||ink.height!==Math.round(h*hudScale)){canvas.width=x;canvas.height=y;ink.width=Math.round(w*hudScale);ink.height=Math.round(h*hudScale);vw=x;vh=y;dirty=true;}G.fov=w/h<1?1.15:1.32;}
- function clearInput(){mouse.clear();keys.clear();pressed=false;touch.f=touch.s=0;touch.fire=touch.sprint=false;focusHold=false;stickId=null;dragId=null;turn=tilt=0;drags.clear();$('nub').style.transform='';}
- function unlock(){wantLock=false;if(document.pointerLockElement===canvas){ignoreUnlock=true;try{document.exitPointerLock()}catch(_){}}}
- function lock(){if(coarse||!canvas.requestPointerLock||document.pointerLockElement===canvas||wantLock)return;wantLock=true;
- try{let r=canvas.requestPointerLock();if(r&&r.catch)r.catch(()=>{wantLock=false})}catch(_){wantLock=false}
- setTimeout(()=>{wantLock=false},500)}
+ function clearInput(){chordOwner=shootID=aimID=null;mouse.clear();keys.clear();pressed=false;touch.f=touch.s=0;touch.fire=touch.sprint=false;focusHold=false;stickId=null;dragId=null;turn=tilt=0;drags.clear();$('nub').style.transform='';}
+ // Input route and recorder. The stock threshold filter itself remains byte-identical to XI.1.
+ const journal=MistPointerJournal.create();let route='standard',actual='inactive',lastActive='',generation=0,ticket=null,focused=true,shootID=null,aimID=null,jState='off';
+ const tr={inactive:'尚未进入',standard:'标准锁定',raw:'原始锁定（浏览器已确认）',unverified:'已锁定；旧浏览器无法确认是否原始',waiting:'正在申请锁定',pendingRaw:'已锁定，等待原始模式确认',fallback:'标准锁定（原始输入不受支持）',denied:'未能锁定，可用右键拖看',drag:'右键拖看（不锁定）',paused:'已暂停，指针已释放',waitOld:'正在释放旧请求；可暂停后再进',unfocused:'请先切回游戏窗口'};
+ const liveFocus=()=>focused&&!document.hidden&&(typeof document.hasFocus!=='function'||document.hasFocus());
+ const inputClock=()=>performance.now();
+ function updateRoute(){
+  for(const [id,value] of [['mouseModeStd','standard'],['mouseModeRaw','raw'],['mouseModeDrag','drag']])$(id).setAttribute('aria-pressed',String(route===value));
+  $('mouseModeNotice').textContent='实际状态：'+tr[actual]+(actual==='paused'&&lastActive?'；上次 '+tr[lastActive]:'');
+  $('mouseRouteHelp').textContent=route==='drag'?'右键按住拖动转向；松开后随意挪鼠标。左键发射，Q 聚焦。':route==='raw'?'请求不经系统加速的相对移动。不支持时回到标准锁定，不会把申请等同于成功。':'默认的锁定视角。若它仍漂移，可用下方备用入口绕过锁定。';
+  $('viewInputNote').textContent=route==='drag'?'右键拖看 · 左键发射 · Q 聚焦':tr[actual];
+ }
+ function setActual(v){if(actual===v)return;actual=v;if(['raw','standard','fallback','unverified','drag'].includes(v))lastActive=v;if(journal.live())journal.mode(inputClock(),v);updateRoute()}
+ function choose(v){if(state==='play')return;unlock();route=v;setActual('inactive');updateRoute()}
+ function updateJournal(){
+  const k=journal.state();jState=k;$('mouseJournalToggle').textContent=k==='off'?'开启本地记录':'关闭并清空';$('mouseJournalToggle').setAttribute('aria-pressed',String(k!=='off'));
+  $('mouseJournalMark').disabled=k!=='recording';$('mouseJournalExport').disabled=!journal.hasData();
+  $('mouseJournalStatus').textContent=k==='off'?'默认关闭，不保存。':k==='frozen'?'标记已冻结。可导出或清空。':k==='marked'?'已标记，正在保留最后半秒。':'记录在本页内存中；出现漂移时按 T。';
+  $('pointerMark').hidden=k==='off';$('pointerMark').textContent=k==='recording'?'本地记录 · T 标记':k==='marked'?'已标记':'已冻结';
+ }
+ function markMouse(){journal.mark(inputClock());updateJournal()}
+ $('mouseModeStd').addEventListener('click',()=>choose('standard'));$('mouseModeRaw').addEventListener('click',()=>choose('raw'));$('mouseModeDrag').addEventListener('click',()=>choose('drag'));
+ $('dragPlay').addEventListener('click',()=>{if(state!=='menu'&&state!=='pause')return;choose('drag');start()});
+ $('mouseJournalToggle').addEventListener('click',()=>{if(journal.state()==='off'){journal.start(inputClock());journal.mode(inputClock(),actual)}else journal.clear();updateJournal()});
+ $('mouseJournalMark').addEventListener('click',markMouse);
+ $('mouseJournalExport').addEventListener('click',()=>{const s=journal.exportJSON(inputClock());if(!s)return;const blob=new Blob([s],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='mistport-pointer-local.json';try{a.click()}finally{setTimeout(()=>URL.revokeObjectURL(url),1000)}});
+ updateRoute();updateJournal();
+ function reportSample(source,dx,dy,e,fn){if(!journal.live())return fn();
+ const p=G.p,oy=p.a,op=p.pitch,stamp=eventMS(e,true),v=fn();journal.packet(inputClock(),stamp,source,dx,dy,oy,op,p.a,p.pitch);if((source==='raw-lock'||source==='lock')&&mouse.verdict()==='duplicate-burst')journal.mode(inputClock(),'isolated-paired-large');return v}
+ function still(z){return ticket===z&&z.gen===generation&&state==='play'&&route!=='drag'&&liveFocus()&&!G.mapOpen}
+ function invalidateLock(){generation++;if(ticket)ticket.obsolete=true;wantLock=false}
+ function unlock(){invalidateLock();if(document.pointerLockElement===canvas){ignoreUnlock=true;try{document.exitPointerLock()}catch(_){}}}
+ function lock(){
+  if(coarse||!liveFocus()||state!=='play')return;if(route==='drag'){setActual('drag');return}
+  if(!canvas.requestPointerLock){setActual('denied');return}
+  if(document.pointerLockElement===canvas||wantLock)return;
+  if(ticket&&!ticket.done&&ticket.obsolete&&inputClock()-ticket.at<650){setActual('waitOld');return}
+  const z={gen:generation,at:inputClock(),pending:'',done:false,obsolete:false};ticket=z;wantLock=true;setActual('waiting');
+  function run(wantRaw,fallback=false){
+   if(!still(z))return;z.pending=wantRaw?'raw':fallback?'fallback':'standard';z.promise=false;z.resolved=false;
+   function rejected(e){
+    if(!still(z))return;
+    if(wantRaw&&e?.name==='NotSupportedError'){run(false,true);return}
+    z.done=true;wantLock=false;setActual('denied');
+   }
+   try{const v=wantRaw?canvas.requestPointerLock({unadjustedMovement:true}):canvas.requestPointerLock();
+    if(v&&typeof v.then==='function'){z.promise=true;v.then(()=>{if(!still(z))return;z.resolved=true;if(document.pointerLockElement===canvas){z.done=true;wantLock=false;setActual(wantRaw?'raw':fallback?'fallback':'standard')}},rejected);}
+    else{z.legacy=true;if(document.pointerLockElement===canvas){z.done=true;wantLock=false;setActual(wantRaw?'unverified':fallback?'fallback':'standard');}}
+   }catch(e){rejected(e)}
+  }
+  run(route==='raw'); setTimeout(()=>{if(!still(z)||z.done||document.pointerLockElement===canvas)return;z.done=true;wantLock=false;setActual('denied')},800);
+ }
+ function lockChanged(){
+  const locked=document.pointerLockElement===canvas,z=ticket;
+  if(locked){
+   if(!z||!still(z)||z.done&&actual==='denied'){if(document.pointerLockElement===canvas){ignoreUnlock=true;try{document.exitPointerLock()}catch(_){}}return}
+   lockWas=true;wantLock=false;ignoreUnlock=false;discardMouseDrag();rearmMouse();
+   if(z.pending==='raw'){setActual(z.resolved?'raw':z.legacy?'unverified':'pendingRaw')}else setActual(z.pending==='fallback'?'fallback':'standard');
+   if(z.pending!=='raw'||z.resolved||z.legacy)z.done=true;return
+  }
+  mouse.clear();discardMouseDrag();const lost=lockWas&&!ignoreUnlock;lockWas=false;ignoreUnlock=false;wantLock=false;pressed=false;shootID=aimID=null;
+  if(lost&&state==='play')pause();if(state!=='play')setActual('paused');
+ }
+ function lockError(){if(document.pointerLockElement===canvas)return;if(mouse.source()==='lock')mouse.clear();
+  // Let Promise rejection decide whether raw fallback is qualified. An event alone never
+  // grants a retry after denial/Esc and is not evidence of successful raw input.
+  if(ticket?.legacy&&still(ticket)){ticket.done=true;wantLock=false;setActual('denied')}
+ }
+
  function menuView(){
  G.p.x=26.28;G.p.y=13.52;G.p.a=-.015;G.p.pitch=.085;G.allies[0].x=30.0;G.allies[0].y=15.55;G.allies[1].x=30.9;G.allies[1].y=13.06;let b=G.enemies.find(e=>e.kind==='brute');b.x=31.95;b.y=14.82;let h=G.enemies.find(e=>e.kind==='hound');h.x=33.4;h.y=13.36;
  G._diorama={heavy:b,runner:h};G.enemies=G.enemies.filter(e=>Math.hypot(e.x-G.p.x,e.y-G.p.y)>2.7);G.allies[0].label='';G.allies[1].label='';M.objects(G)
@@ -3566,7 +3687,7 @@ const MistMouse=(()=>{
  }
  function uiMode(k){pace.interrupt();state=k;$('showroom').hidden=true;$('surveyPanel').hidden=true;clearInput();let playing=k==='play',paused=k==='pause';$('hud').hidden=!playing;$('overlay').hidden=playing;
  if(playing){aud.pause(false);last=0;uiAt=-1;dirty=true;return}
- unlock();aud.pause(true);G.mapOpen=false;dirty=true;
+ journal.pause(inputClock());updateJournal();unlock();setActual('paused');aud.pause(true);G.mapOpen=false;dirty=true;
  let summary='';if(k==='won'||k==='lost'){summary='行动时长 '+short(G.t)+'　 /　驱散 '+G.kills+'　 /　队友协助 '+G.squadKills+'　 /　修复 '+G.restores+' 次';
  write('modeTag',k==='won'?'行动档案 / SIGNAL RESTORED':'行动档案 / SIGNAL LOST');
  write('title',k==='won'?'雾散归航':'信号中断');write('intro',k==='won'?'救援艇离开码头。无线电里的两个声音都回应了你。':'失真噪声吞没了潮汐信道。港灯还亮着，你可以带小队重新登陆。');
@@ -3574,7 +3695,7 @@ const MistMouse=(()=>{
  if(paused){write('modeTag','行动暂停 / STANDBY');write('title','信道待机');write('intro','小队停在原地等你。继续后会回到刚才的位置。');summary='当前目标：'+M.TASK[G.stage];write('start','继续行动')}
  write('summary',summary);$('restartRun').hidden=!paused;syncSound();if(k!=='menu')$('start').focus({preventScroll:true})
  }
- function start(restart=false){if(glFailed||!P3)return;let resume=state==='pause'&&!restart;if(!resume){G=M.fresh(++seed);StormRuntime.attach(G,preset,softFlashes);G.storm.climate.setLamp(torchOn);aud.reset?.();G.msg='雁、芦已上线 · 跟随菱形路标前往西库';G.msgTime=4.5;quality=graphics==='low'?.67:1;performanceDebt=0;frameAvg=.018;adaptClock=0;resize()}
+ function start(restart=false){if(glFailed||!P3)return;if(document.hidden||(typeof document.hasFocus==='function'&&!document.hasFocus())){setActual('unfocused');return}focused=true;let resume=state==='pause'&&!restart;if(!resume){G=M.fresh(++seed);StormRuntime.attach(G,preset,softFlashes);G.storm.climate.setLamp(torchOn);aud.reset?.();G.msg='雁、芦已上线 · 跟随菱形路标前往西库';G.msgTime=4.5;quality=graphics==='low'?.67:1;performanceDebt=0;frameAvg=.018;adaptClock=0;resize()}
  aud.start();aud.mute(muted);uiMode('play');aud.cue('click');canvas.focus({preventScroll:true});lock();hud()}
  function pause(){if(state==='play')uiMode('pause')}
  function mapToggle(){G.mapOpen=!G.mapOpen;mouse.clear();discardMouseDrag();if(!G.mapOpen&&document.pointerLockElement===canvas)rearmMouse();dirty=true;}
@@ -3654,40 +3775,64 @@ const MistMouse=(()=>{
   if(e.code==='KeyP'&&state==='pause'){e.preventDefault();start();return}
   if(state!=='play')return;
   if(['Space','Tab','ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.code))e.preventDefault();
-  keys.add(e.code);if(e.repeat)return;switch(e.code){
+  if(e.code==='KeyT'&&!e.repeat&&journal.state()==='recording'){e.preventDefault();markMouse();return}keys.add(e.code);if(e.repeat)return;switch(e.code){
    case 'KeyE':use();break;case 'KeyX':inspectGear();break;case 'KeyF':torch();break;case 'KeyG':pushCargo();break;case 'KeyR':M.reload(G);break;case 'KeyM':case 'Tab':mapToggle();break;case 'KeyP':pause();break;case 'KeyV':mute();break;
   }
  });
  window.addEventListener('keyup',e=>{keys.delete(e.code)});
- function backgroundPause(){if(state==='play')pause();else clearInput();if(document.pointerLockElement===canvas)unlock();}
- window.addEventListener('blur',backgroundPause);window.addEventListener('pagehide',backgroundPause);
+ function backgroundPause(){focused=false;if(state==='play')pause();else clearInput();if(document.pointerLockElement===canvas)unlock();}
+ window.addEventListener('focus',()=>{focused=!document.hidden});window.addEventListener('blur',backgroundPause);window.addEventListener('pagehide',backgroundPause);
  document.addEventListener('visibilitychange',()=>{if(document.hidden)backgroundPause();if(touchGpu)mobileBudget.resetClock();last=0});
- document.addEventListener('pointerlockchange',()=>{
-  let now=document.pointerLockElement===canvas;if(now){wantLock=false;ignoreUnlock=false;lockWas=true;discardMouseDrag();if(state==='play'&&!document.hidden&&!G.mapOpen)rearmMouse();else if(state!=='play')unlock();return}
-  mouse.clear();discardMouseDrag();
-  if(lockWas&&!ignoreUnlock&&state==='play')pause();lockWas=false;ignoreUnlock=false;pressed=false;wantLock=false
- });
- document.addEventListener('pointerlockerror',()=>{wantLock=false;if(document.pointerLockElement!==canvas&&mouse.source()==='lock')mouse.clear()});
+ document.addEventListener('pointerlockchange',lockChanged);document.addEventListener('pointerlockerror',lockError);
+ function absReset(){if(route==='drag'&&dragId!==null){discardMouseDrag();mouse.clear()}}
+ canvas.addEventListener('lostpointercapture',e=>{if(route==='drag'&&e.pointerType==='mouse'&&e.pointerId===dragId)absReset()});window.addEventListener('resize',absReset);
  function touchRotate(dx,dy){if(state!=='play'||G.mapOpen)return;G.p.a+=clamp(dx,-170,170)*.0047;G.p.pitch=clamp(G.p.pitch-clamp(dy,-170,170)*.0047*.78,-.52,.53);}
- document.addEventListener('mousemove',e=>{if(state!=='play'||document.hidden||G.mapOpen||document.pointerLockElement!==canvas||mouse.source()!=='lock')return;
+ document.addEventListener('mousemove',e=>{if(route==='drag'||state!=='play'||!liveFocus()||G.mapOpen||document.pointerLockElement!==canvas||mouse.source()!=='lock')return;
   if(!mouseLike(e)||e.target&&e.target!==canvas&&e.target!==document&&!e.composedPath?.().includes(canvas))return;
-  mouse.sample('lock',e.movementX,e.movementY,eventMS(e,Math.max(Math.abs(e.movementX),Math.abs(e.movementY))<=5),mouseGain(),msNow());});
+  reportSample(actual==='raw'?'raw-lock':'lock',e.movementX,e.movementY,e,()=>mouse.sample('lock',e.movementX,e.movementY,eventMS(e,Math.max(Math.abs(e.movementX),Math.abs(e.movementY))<=5),mouseGain(),msNow()));});
  canvas.addEventListener('contextmenu',e=>e.preventDefault());
+// Mouse PointerDown/Up denote the first/last button, not every button in a chord.
+// Keep PointerEvent coordinates for dragging and a single owner; process raw button edges
+// from compatibility mouse events too. Duplicate edges are idempotent.
+let chordOwner=null;
+function chordAllowed(e){return chordOwner!==null&&state==='play'&&liveFocus()&&!G.mapOpen&&mouseLike(e)&&(e.pointerId===undefined||e.pointerId===chordOwner)}
+function chordEdge(e,down){
+ if(!chordAllowed(e)||(e.button!==0&&e.button!==2))return;
+ const id=chordOwner;
+ if(e.button===0){if(down&&!pressed){shootID=id;pressed=true;G.inspectAt=-99;M.fire(G)}
+  else if(!down&&shootID===id){pressed=false;shootID=null}return;}
+ if(route==='drag'){
+  if(down&&dragId===null&&Number.isFinite(e.clientX)&&Number.isFinite(e.clientY)){mouse.begin('drag',msNow());dragId=id;drags.set(id,[e.clientX,e.clientY,'mouse',msNow()]);try{canvas.setPointerCapture(id)}catch(_){}}
+  else if(!down&&dragId===id)absReset();
+ }else if(document.pointerLockElement===canvas){if(down){aimID=id;focusHold=true}else if(aimID===id){aimID=null;focusHold=false}}
+}
+canvas.addEventListener('mousedown',e=>chordEdge(e,true));
+window.addEventListener('mouseup',e=>chordEdge(e,false));
+
  canvas.addEventListener('pointerdown',e=>{if(state==='survey'){surveyDrag={id:e.pointerId,x:e.clientX,y:e.clientY};try{canvas.setPointerCapture(e.pointerId)}catch(_){}return}if(state==='gallery'){galleryDrag={id:e.pointerId,x:e.clientX,y:e.clientY};try{canvas.setPointerCapture(e.pointerId)}catch(_){}return}
-  if(state!=='play')return;
+  if(state!=='play'||!liveFocus())return;
   if(G.mapOpen){mapToggle();return}
-  if(e.pointerType==='mouse'&&e.button!==0&&e.button!==2)return;
-  if(e.pointerType==='mouse'&&e.button===2&&document.pointerLockElement===canvas)focusHold=true;
-  if(e.pointerType==='mouse'&&e.button===0){pressed=true;G.inspectAt=-99;M.fire(G)}
-  if(document.pointerLockElement!==canvas){if(e.pointerType==='mouse'){if(!mouseLike(e))return;mouse.begin('drag',msNow());}dragId=e.pointerId;drags.set(e.pointerId,[e.clientX,e.clientY,e.pointerType,msNow()]);try{canvas.setPointerCapture(e.pointerId)}catch(_){}}
+  if(e.pointerType==='mouse'&&e.button!==0&&e.button!==2)return;if(e.pointerType==='mouse'){if(!mouseLike(e)||e.isPrimary===false)return;chordOwner=e.pointerId}
+  if(e.pointerType==='mouse'&&e.button===2&&document.pointerLockElement===canvas){aimID=e.pointerId;focusHold=true;}
+  if(e.pointerType==='mouse'&&e.button===0){shootID=e.pointerId;pressed=true;G.inspectAt=-99;M.fire(G)}
+  if(document.pointerLockElement!==canvas){if(e.pointerType==='mouse'){if(!mouseLike(e))return;if(route==='drag'&&e.button!==2)return;mouse.begin('drag',msNow());}dragId=e.pointerId;drags.set(e.pointerId,[e.clientX,e.clientY,e.pointerType,msNow()]);try{canvas.setPointerCapture(e.pointerId)}catch(_){}}
  });
  canvas.addEventListener('pointermove',e=>{if(state==='survey'&&surveyDrag&&surveyDrag.id===e.pointerId){const dx=e.clientX-surveyDrag.x,dy=e.clientY-surveyDrag.y,nx=clamp(surveyPan[0]+dx*.003,-.46,.46),ny=clamp(surveyPan[1]-dy*.002,-.26,.26);surveyG.p.a+=nx-surveyPan[0];surveyG.p.pitch+=ny-surveyPan[1];surveyPan=[nx,ny];surveyDrag.x=e.clientX;surveyDrag.y=e.clientY;dirty=true;return}if(state==='gallery'&&galleryDrag&&galleryDrag.id===e.pointerId){orbit-=(e.clientX-galleryDrag.x)*.008;elevation=clamp(elevation+(e.clientY-galleryDrag.y)*.006,-.06,.68);galleryDrag.x=e.clientX;galleryDrag.y=e.clientY;dirty=true;return}
- if(document.pointerLockElement===canvas||e.pointerId!==dragId)return;let q=drags.get(e.pointerId);if(q&&e.pointerType===q[2]){if(e.pointerType==='mouse'){
+ if(e.pointerType==='mouse'&&chordAllowed(e)&&typeof e.buttons==='number'&&e.buttons>0&&(e.button===0||e.button===2))chordEdge(e,!!(e.buttons&(e.button===0?1:2)));if(!liveFocus()||document.pointerLockElement===canvas||e.pointerId!==dragId)return;let q=drags.get(e.pointerId);if(q&&e.pointerType===q[2]){if(e.pointerType==='mouse'){
   const t=eventMS(e,Math.max(Math.abs(e.clientX-q[0]),Math.abs(e.clientY-q[1]))<=5);if(!mouseLike(e)||!Number.isFinite(t)||t<q[3]-.05)return;
-  if(!mouse.sample('drag',e.clientX-q[0],e.clientY-q[1],t,mouseGain(),msNow()))return;
+  if(route==='drag'){
+   if(e.buttons!==undefined&&!(e.buttons&2)){absReset();return}
+   const rc=canvas.getBoundingClientRect(),w=Number.isFinite(rc.width)&&rc.width>0?rc.width:innerWidth,h=Number.isFinite(rc.height)&&rc.height>0?rc.height:innerHeight,L=rc.left||0,T=rc.top||0;
+   if(e.clientX<L||e.clientX>L+w||e.clientY<T||e.clientY>T+h){drags.set(e.pointerId,[NaN,NaN,e.pointerType,t]);return}
+   if(Number.isFinite(q[0])&&Number.isFinite(q[1])){
+    const dx=e.clientX-q[0],dy=e.clientY-q[1];reportSample('right-drag',dx,dy,e,()=>{const p=G.p,rate=mouseGain();p.a+=dx*rate;const op=p.pitch;p.pitch=clamp(p.pitch-dy*rate*.78,-.52,.53);if(journal.live())journal.applied(inputClock(),'right-drag',dx*rate,p.pitch-op)});
+   }
+  }else if(!reportSample('unlocked-fallback',e.clientX-q[0],e.clientY-q[1],e,()=>mouse.sample('drag',e.clientX-q[0],e.clientY-q[1],t,mouseGain(),msNow())))return;
   drags.set(e.pointerId,[e.clientX,e.clientY,e.pointerType,t])
  }else{touchRotate(e.clientX-q[0],e.clientY-q[1]);drags.set(e.pointerId,[e.clientX,e.clientY,e.pointerType,0])}}});
- function release(e){if(surveyDrag&&surveyDrag.id===e.pointerId)surveyDrag=null;if(galleryDrag&&galleryDrag.id===e.pointerId)galleryDrag=null;if(e.pointerType==='mouse'){if(e.button===2)focusHold=false;else pressed=false}drags.delete(e.pointerId);if(dragId===e.pointerId){dragId=null;if(e.pointerType==='mouse'&&mouse.source()==='drag')mouse.clear()}}
+ function release(e){if(e.pointerType==='mouse'&&e.pointerId===chordOwner&&(e.type==='pointercancel'||e.buttons===0||e.buttons===undefined))chordOwner=null;if(surveyDrag&&surveyDrag.id===e.pointerId)surveyDrag=null;if(galleryDrag&&galleryDrag.id===e.pointerId)galleryDrag=null;if(e.pointerType==='mouse'){if(e.pointerId===aimID&&(e.button===2||e.type==='pointercancel')){focusHold=false;aimID=null}if(e.pointerId===shootID&&(e.button===0||e.type==='pointercancel')){pressed=false;shootID=null}}
+ const active=drags.get(e.pointerId);if(active&&active[2]!==e.pointerType)return;
+ if(e.pointerType==='mouse'&&route==='drag'&&e.button!==2&&e.type!=='pointercancel')return;drags.delete(e.pointerId);if(dragId===e.pointerId){dragId=null;if(e.pointerType==='mouse'&&mouse.source()==='drag')mouse.clear()}}
  window.addEventListener('pointerup',release);window.addEventListener('pointercancel',release);
  const stick=$('stick'),nub=$('nub');function stickAt(e){let b=stick.getBoundingClientRect(),x=(e.clientX-b.left-b.width*.5)/(b.width*.38),y=(e.clientY-b.top-b.height*.5)/(b.height*.38),n=Math.max(1,Math.hypot(x,y));touch.s=x/n;touch.f=-y/n;nub.style.transform='translate('+Math.round(touch.s*b.width*.25)+'px,'+Math.round(-touch.f*b.height*.25)+'px)'}
  stick.addEventListener('pointerdown',e=>{e.preventDefault();stickId=e.pointerId;try{stick.setPointerCapture(stickId)}catch(_){}stickAt(e)});
@@ -3718,12 +3863,12 @@ const MistMouse=(()=>{
  const ctx=ink.getContext('2d');ctx.clearRect(0,0,ink.width,ink.height);
  try{
   P3.luSettings(graphics,preferSteady);const opt=state==='survey'?P3.build(surveyG,'survey',ms*.001,preferSteady,false):state==='gallery'?P3.gallery(catalog,galleryTime,orbit,elevation,zoom,detailView,cartridgeOut):P3.build(G,state,ms*.001,preferSteady,!!(focusHold||keys.has('KeyQ')));
-  opt.performance={touch:!!touchGpu,tier:graphics,scale:quality};if(opt.weather)opt.weather.quality=graphics==='low'?0:touchGpu?(graphics==='high'?Math.max(.69,quality):.38+.40*quality):clamp((quality-.67)/.33,0,1);P3.draw(opt);
+  opt.performance={touch:!!touchGpu,tier:graphics,scale:quality};if(opt.weather)opt.weather.quality=graphics==='low'?0:touchGpu?(graphics==='high'?Math.max(.69,quality):.38+.40*quality):clamp((quality-.67)/.33,0,1);P3.draw(opt);if(state==='play'&&journal.live())journal.frame(inputClock(),opt.dir,opt.fov,ms);
   if(state==='gallery'&&catalog===1&&opt.luLOD){const m=opt.luLOD.mode,counts=m==='near'?luPortraitNearStats.triangles.toLocaleString('zh-CN'):m==='far'?MistThreeAssetInfo.ally2.triangles.toLocaleString('zh-CN'):'双模型过渡';const text='THREE · R180　/　'+(m==='near'?'人物特写':m==='far'?'常规精度':'切换中')+'　·　'+counts+(m==='transition'?'':' 三角面');if($('galleryStats').textContent!==text)$('galleryStats').textContent=text;}
   if(state==='play')drawMistHUD(ink,G)
  }catch(e){errorState(e)}
  }
- function frame(ms){mouse.tick(ms);
+ function frame(ms){mouse.tick(ms);if(journal.live()){journal.tick(inputClock());if(jState!==journal.state())updateJournal()}
  if(glFailed)return;
  if(document.hidden){pace.interrupt();last=0;if(touchGpu)mobileBudget.resetClock();requestAnimationFrame(frame);return}
  let elapsed=last===0?0:Math.min(.14,(ms-last)/1000);last=ms;
